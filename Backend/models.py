@@ -5,15 +5,15 @@ from sqlalchemy.orm import sessionmaker
 from database import engine
 
 class OutCodeAreaText(BaseModel):
-    output: str = None
-    errout: str = None
+    output: str = ""
+    errout: str = ""
     flag: bool = False
-    time: str = None
+    time: str = ""
 
 class InCodeAreaText(BaseModel):
-    input: str = None
-    code: str = None
-    lang: str = None
+    input: str = ""
+    code: str = ""
+    lang: str = ""
 
 def create_table():
     with engine.connect() as conn:

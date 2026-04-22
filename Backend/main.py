@@ -36,7 +36,7 @@ async def Submit(InCurrentCode: models.InCodeAreaText):
 
     #Container
     instancia = container.container_run(client, InCurrentCode.lang, filepath, inputpath) # Inicio o container com os dados necessários
-    scode = 0
+    scode = 0 # Status code
 
     try:
 
