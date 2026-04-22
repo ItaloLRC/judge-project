@@ -1,6 +1,7 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile, File, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+import zipfile
 import os
 import docker
 import filesystem
@@ -10,8 +11,6 @@ import constants
 import crud
 
 app = FastAPI()
-BASE = os.path.dirname(__file__) # Pega o endereço do arquivo atual
-submissionDir = os.path.join(BASE, "..", "Submissions")
 
 client = docker.from_env()
 models.create_table()
@@ -75,7 +74,7 @@ async def Submit(InCurrentCode: models.InCodeAreaText):
 
         #Crio os arquivos persistentes da submissão atual
         #Consiste em código fonte, output e input
-        subpath = os.path.join(submissionDir, str(currentID))
+        subpath = os.path.join(constants.submissionDir, str(currentID))
         os.makedirs(subpath)
         filesystem.write_file(os.path.join(subpath, "cf.txt"), InCurrentCode.code) # Salvo o código fonte
         filesystem.write_file(os.path.join(subpath, "out.txt"), OutCurrentCode.output) # Salvo o output
@@ -99,9 +98,14 @@ async def Submissions(request: Request):
         context={"submissions": submissions}
     )
 
-@app.post("/problems/submit")
-async def ProblemSubmissions():
-    return None
+@app.post("/problem/new")
+async def ProblemSubmissions(file: UploadFile = File(...), etext: str = "", time : int = 0, ):
+
+    
+
+
+    return etext
+
 
 @app.get("/submission/{id}")
 async def current_submission(id: int, request: Request):
@@ -110,9 +114,9 @@ async def current_submission(id: int, request: Request):
 
     strid = str(id)
 
-    submission["code"] = filesystem.read_file(os.path.join(submissionDir, strid, "cf.txt"))
-    submission["output"] = filesystem.read_file(os.path.join(submissionDir, strid, "out.txt"))
-    submission["input"] = filesystem.read_file(os.path.join(submissionDir, strid, "in.txt"))
+    submission["code"] = filesystem.read_file(os.path.join(constants.submissionDir, strid, "cf.txt"))
+    submission["output"] = filesystem.read_file(os.path.join(constants.submissionDir, strid, "out.txt"))
+    submission["input"] = filesystem.read_file(os.path.join(constants.submissionDir, strid, "in.txt"))
 
     print(submission)
 
@@ -124,5 +128,5 @@ async def current_submission(id: int, request: Request):
 
 
 
-templates = Jinja2Templates(directory=os.path.join(BASE, "..\\Frontend\\Templates"))
-app.mount("/", StaticFiles(directory=os.path.join(BASE, "../Frontend"), html=True), name="static")#
+templates = Jinja2Templates(directory=os.path.join(constants.BASE, "..\\Frontend\\Templates"))
+app.mount("/", StaticFiles(directory=os.path.join(constants.BASE, "../Frontend"), html=True), name="static")#

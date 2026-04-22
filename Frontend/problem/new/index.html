@@ -149,6 +149,9 @@
     </div>
 
     <script>
+        
+        const API = "http://127.0.0.1:8000"
+
         document.getElementById('zipfile').addEventListener('change', function () {
             const file = this.files[0];
             const info = document.getElementById('zipinfo');
@@ -177,8 +180,20 @@
                 return;
             }
 
-            feedback.style.color = 'green';
-            feedback.textContent = 'Problema cadastrado com sucesso!';
+            fetch(API + "/problem/new", {
+                
+                method: "POST",
+                headers: { "Content-Type": "application/json"},
+                body: JSON.stringify({zipfile: zip, text: enunciado, time: tempo})
+
+            }).then(function(ans){
+                return ans.json();
+            }).then(function(data){
+                console.log(data);
+            }).catch(function(error){
+                console.log("Erro de envio.");
+            })
+
         });
     </script>
 
