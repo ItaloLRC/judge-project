@@ -1,0 +1,187 @@
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Cadastro de Problema</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: monospace;
+            background: #f5f5f5;
+            color: #111;
+            padding: 30px 20px;
+        }
+
+        h2 {
+            text-align: center;
+            font-size: 16px;
+            margin-bottom: 24px;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+
+        .form-wrapper {
+            max-width: 700px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+
+        textarea {
+            font-family: monospace;
+            font-size: 12px;
+            border: 1px solid #bbb;
+            background: #fff;
+            padding: 6px;
+            resize: vertical;
+        }
+
+        select, input[type="number"] {
+            font-family: monospace;
+            font-size: 12px;
+            padding: 4px 6px;
+            border: 1px solid #bbb;
+            background: #fff;
+        }
+
+        input[type="file"] {
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .row {
+            display: flex;
+            gap: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .field-center {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .submit-row {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button {
+            font-family: monospace;
+            font-size: 13px;
+            padding: 5px 28px;
+            cursor: pointer;
+            background: #fff;
+            border: 1px solid #666;
+            letter-spacing: 1px;
+        }
+
+        button:hover { background: #e4e4e4; }
+
+        #zipinfo {
+            font-size: 11px;
+            color: gray;
+        }
+
+        #feedback {
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>CADASTRO DE PROBLEMA</h2>
+
+    <div class="form-wrapper">
+
+        <div class="field">
+            <label>Enunciado do Problema</label>
+            <textarea rows="12" id="enunciado" placeholder="Descreva o enunciado do problema aqui..."></textarea>
+        </div>
+
+        <div class="row">
+            <div class="field">
+                <label>Linguagem</label>
+                <select name="lang" id="langarea">
+                    <option value="C">C</option>
+                    <option value="C++">C++</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label>Tempo Máximo (ms)</label>
+                <input type="number" id="tempo" min="1" value="1000" style="width: 120px;">
+            </div>
+        </div>
+
+        <div class="field-center">
+            <label>Arquivo de Casos de Teste (.zip)</label>
+            <input type="file" id="zipfile" accept=".zip">
+            <span id="zipinfo"></span>
+        </div>
+
+        <div class="submit-row">
+            <button id="btnCadastrar">CADASTRAR</button>
+            <p id="feedback"></p>
+        </div>
+
+    </div>
+
+    <script>
+        document.getElementById('zipfile').addEventListener('change', function () {
+            const file = this.files[0];
+            const info = document.getElementById('zipinfo');
+            info.textContent = file ? 'Arquivo selecionado: ' + file.name : '';
+        });
+
+        document.getElementById('btnCadastrar').addEventListener('click', function () {
+            const enunciado = document.getElementById('enunciado').value.trim();
+            const tempo = document.getElementById('tempo').value;
+            const zip = document.getElementById('zipfile').files[0];
+            const feedback = document.getElementById('feedback');
+
+            if (!enunciado) {
+                feedback.style.color = 'red';
+                feedback.textContent = 'Por favor, preencha o enunciado do problema.';
+                return;
+            }
+            if (!tempo || tempo <= 0) {
+                feedback.style.color = 'red';
+                feedback.textContent = 'Por favor, informe um tempo máximo válido.';
+                return;
+            }
+            if (!zip) {
+                feedback.style.color = 'red';
+                feedback.textContent = 'Por favor, selecione um arquivo .zip com os casos de teste.';
+                return;
+            }
+
+            feedback.style.color = 'green';
+            feedback.textContent = 'Problema cadastrado com sucesso!';
+        });
+    </script>
+
+</body>
+
+</html>

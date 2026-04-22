@@ -1,0 +1,149 @@
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Submissão</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: monospace;
+            background: #f5f5f5;
+            color: #111;
+            padding: 30px 20px;
+        }
+
+        h2 {
+            text-align: center;
+            font-size: 16px;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+        }
+
+        select {
+            font-family: monospace;
+            font-size: 13px;
+            padding: 2px 6px;
+            border: 1px solid #aaa;
+            background: #fff;
+        }
+
+        .editors {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .editor-block {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+
+        textarea {
+            font-family: monospace;
+            font-size: 12px;
+            border: 1px solid #bbb;
+            background: #fff;
+            padding: 6px;
+            resize: vertical;
+        }
+
+        textarea[readonly] {
+            background: #ececec;
+        }
+
+        .submit-row {
+            display: flex;
+            justify-content: center;
+            margin: 16px 0;
+        }
+
+        button {
+            font-family: monospace;
+            font-size: 13px;
+            padding: 5px 28px;
+            cursor: pointer;
+            background: #fff;
+            border: 1px solid #666;
+            letter-spacing: 1px;
+        }
+
+        button:hover { background: #e4e4e4; }
+
+        .output-block {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-width: 820px;
+            margin: 0 auto;
+        }
+
+        .output-block label { text-align: center; }
+    </style>
+</head>
+
+<body>
+
+    <h2>SUBMISSÃO</h2>
+
+    <div class="top-bar">
+        Linguagem
+        <select name="lang" id="langarea">
+            <option value="C++">C++</option>
+            <option value="C" selected>C</option>
+        </select>
+    </div>
+
+    <div class="editors">
+        <div class="editor-block">
+            <label>Code</label>
+            <textarea rows="30" cols="50" id="txtarea1">
+#include <stdio.h>
+
+int main(){
+
+    printf("Hello world!");
+
+    return 0;
+}
+            </textarea>
+        </div>
+
+        <div class="editor-block">
+            <label>Input</label>
+            <textarea rows="30" cols="50" id="inputarea"></textarea>
+        </div>
+    </div>
+
+    <div class="submit-row">
+        <button id="botao1">SUBMIT</button>
+    </div>
+
+    <div class="output-block">
+        <label>Output</label>
+        <textarea rows="30" cols="50" id="txtarea2" readonly></textarea>
+    </div>
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
