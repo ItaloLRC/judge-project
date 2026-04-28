@@ -98,21 +98,71 @@ async def Submissions(request: Request):
         context={"submissions": submissions}
     )
 
+def parse_name(filename: str):
+    file_id = 0
+
+    for c in filename:
+        if c == '.': break 
+
+        if c > '9' or c < '0':
+            file_id = 0
+            break
+
+        file_id *= 10
+        file_id += int(c)
+
+
+    return file_id ## concatena todas as letras
+
+
 @app.post("/problem/new")
 async def ProblemSubmissions(file: UploadFile = File(...), etext: str = Form(...), time : int = Form(...)):
-    print(file)
-    print(etext)
-    print(time)
+
+    flag = False
+
+    outfiles = set()
+    infiles = set()
+    verify_set = set()
+
+    #endswith('.in')
 
     with zipfile.ZipFile(file.file, "r") as current_zip_file:
 
         current_zip_file_namelist = current_zip_file.namelist()
         k = len(current_zip_file_namelist)
-        print(k)
+        for i in range(1, int(k/2)+1): verify_set.add(int(i))
+
+        for filename in current_zip_file_namelist:
+
+            parsed_name = parse_name(filename)
+            if parsed_name == 0:
+                flag = True
+                break
+            if filename.endswith('.in'):
+                if (parsed_name in infiles):
+                    flag = True
+                    break
+                infiles.add(parsed_name)
+
+            elif filename.endswith('.out'):
+                if (parsed_name in outfiles):
+                    flag = True
+                    break
+                outfiles.add(parsed_name)
+
+            else:
+                flag = True
+                break
+        
+        if infiles != outfiles: flag = True
+        if infiles != verify_set: flag = True
+
+    print(infiles)
+    print(outfiles)
+    print(verify_set)
+    print(flag)
 
 
-    print("abc")
-    ##ok, eu faço o parsing, se der tudo "Ok" eu crio uma pasta e coloco tudo la, se nao retorno erro
 
     return {'message': "Ok"}
 
