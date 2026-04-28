@@ -122,14 +122,6 @@
 
         <div class="row">
             <div class="field">
-                <label>Linguagem</label>
-                <select name="lang" id="langarea">
-                    <option value="C">C</option>
-                    <option value="C++">C++</option>
-                </select>
-            </div>
-
-            <div class="field">
                 <label>Tempo Máximo (ms)</label>
                 <input type="number" id="tempo" min="1" value="1000" style="width: 120px;">
             </div>
@@ -179,20 +171,21 @@
                 feedback.textContent = 'Por favor, selecione um arquivo .zip com os casos de teste.';
                 return;
             }
+            
+            console.log(API + "/problem/new")
+            
+            const formData = new FormData();
+            formData.append("file", zip);
+            formData.append("etext", enunciado);
+            formData.append("time", tempo);
 
             fetch(API + "/problem/new", {
-                
                 method: "POST",
-                headers: { "Content-Type": "application/json"},
-                body: JSON.stringify({zipfile: zip, text: enunciado, time: tempo})
-
-            }).then(function(ans){
-                return ans.json();
-            }).then(function(data){
-                console.log(data);
-            }).catch(function(error){
-                console.log("Erro de envio.");
+                body: formData
             })
+            .then(res => res.json())
+            .then(data => console.log(data))
+            .catch(err => console.log("ERRO"));
 
         });
     </script>

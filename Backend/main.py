@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, UploadFile, File, HTTPException
+from fastapi import FastAPI, Request, UploadFile, File, HTTPException, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import zipfile
@@ -99,12 +99,22 @@ async def Submissions(request: Request):
     )
 
 @app.post("/problem/new")
-async def ProblemSubmissions(file: UploadFile = File(...), etext: str = "", time : int = 0, ):
+async def ProblemSubmissions(file: UploadFile = File(...), etext: str = Form(...), time : int = Form(...)):
+    print(file)
+    print(etext)
+    print(time)
 
-    
+    with zipfile.ZipFile(file.file, "r") as current_zip_file:
+
+        current_zip_file_namelist = current_zip_file.namelist()
+        k = len(current_zip_file_namelist)
+        print(k)
 
 
-    return etext
+    print("abc")
+    ##ok, eu faço o parsing, se der tudo "Ok" eu crio uma pasta e coloco tudo la, se nao retorno erro
+
+    return {'message': "Ok"}
 
 
 @app.get("/submission/{id}")
