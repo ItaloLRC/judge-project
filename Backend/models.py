@@ -42,3 +42,20 @@ def create_table():
             """
         ))
         conn.commit()
+
+        conn.execute(text(
+            """
+            CREATE TABLE IF NOT EXISTS problems(
+            id SERIAL PRIMARY KEY,
+            time INT,
+            title TEXT,
+            textarea TEXT,
+            input TEXT,
+            output TEXT,
+            date TIMESTAMPTZ DEFAULT now()
+            )
+
+        
+            """
+        ))
+        conn.commit()

@@ -116,10 +116,10 @@ def parse_name(filename: str):
 
 
 @app.post("/problem/new")
-async def ProblemSubmissions(file: UploadFile = File(...), etext: str = Form(...), time : int = Form(...)):
+async def ProblemSubmissions(file: UploadFile = File(...), etext: str = Form(...), time : int = Form(...), title : str = Form(...)):
 
     flag = False
-
+    print(title)
     outfiles = set()
     infiles = set()
     verify_set = set()
@@ -156,6 +156,10 @@ async def ProblemSubmissions(file: UploadFile = File(...), etext: str = Form(...
         
         if infiles != outfiles: flag = True
         if infiles != verify_set: flag = True
+
+    current_id = int()
+
+    os.path.join(constants.problemsDir, str(current_id))
 
     print(infiles)
     print(outfiles)

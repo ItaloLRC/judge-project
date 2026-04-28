@@ -117,12 +117,22 @@
 
         <div class="field">
             <label>Nome do problema</label>
-            <textarea rows="12" id="título" placeholder="Descreva o nome do problema aqui..."></textarea>
+            <textarea rows="1" id="titulo" placeholder="Descreva o nome do problema aqui..."></textarea>
         </div>
 
         <div class="field">
             <label>Enunciado do Problema</label>
-            <textarea rows="12" id="enunciado" placeholder="Descreva o enunciado do problema aqui..."></textarea>
+            <textarea rows="24" id="enunciado" placeholder="Descreva o enunciado do problema aqui..."></textarea>
+        </div>
+
+        <div class="field">
+            <label>Entrada do Problema</label>
+            <textarea rows="4" id="input" placeholder="Descreva a entrada do problema aqui..."></textarea>
+        </div>
+
+        <div class="field">
+            <label>Saída do problema</label>
+            <textarea rows="4" id="output" placeholder="Descreva a saída do problema aqui..."></textarea>
         </div>
 
         <div class="row">
@@ -160,10 +170,13 @@
             const tempo = document.getElementById('tempo').value;
             const zip = document.getElementById('zipfile').files[0];
             const feedback = document.getElementById('feedback');
+            const titulo = document.getElementById('titulo').value;
+            const input = document.getElementById('input').value
+            const output = document.getElementById('output').value
 
-            if (!enunciado) {
+            if(!titulo || !output || !input || !enunciado){
                 feedback.style.color = 'red';
-                feedback.textContent = 'Por favor, preencha o enunciado do problema.';
+                feedback.textContent = 'Por favor, preencha os campos do problema.';
                 return;
             }
             if (!tempo || tempo <= 0) {
@@ -183,6 +196,7 @@
             formData.append("file", zip);
             formData.append("etext", enunciado);
             formData.append("time", tempo);
+            formData.append("title", titulo)
 
             fetch(API + "/problem/new", {
                 method: "POST",

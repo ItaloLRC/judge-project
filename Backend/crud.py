@@ -41,6 +41,24 @@ def insert_result_register(sub_id: int, time: str, flag: bool, exit_code: int, e
 
     return cid
 
+def insert_problem_register(time: int, title: str, text:str, input:str, output:str):
+    cid: int
+
+    with engine.connect() as conn:
+        result = conn.execute(text(
+            """
+            INSERT INTO problems (time, title, textarea, input, output)
+            VALUES(:time, :title, :text, :input, :output)
+            RETURNING id
+            """),
+            {"time": time, "title": title, "textarea": text, "input":input, "output":output}
+        )
+
+        cid = result.fetchone().id
+        conn.commit()
+    
+    return cid
+
 def get_submissions_results():
 
     with engine.connect() as conn:
