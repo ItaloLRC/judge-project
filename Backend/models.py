@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+from typing import Literal
+from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -12,8 +13,8 @@ class OutCodeAreaText(BaseModel):
 
 class InCodeAreaText(BaseModel):
     input: str = ""
-    code: str = ""
-    lang: str = ""
+    code: str = Field(min_length=1)
+    lang: Literal["C", "C++"]
 
 def create_table():
     with engine.connect() as conn:

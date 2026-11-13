@@ -36,7 +36,7 @@ O projeto estuda o fluxo de uma submissão, desde o formulário no navegador at�
 
 ## Ambiente de desenvolvimento
 
-O backend usa Python, FastAPI, Uvicorn, SQLAlchemy e o SDK Python do Docker. É necessário ter PostgreSQL e um daemon Docker em execução, com suporte às imagens Linux usadas pelo projeto. Os caminhos dos templates em `Backend/main.py` incluem separadores de Windows; confira esse trecho se for executar em Linux.
+O backend usa Python 3.10+, FastAPI, Uvicorn, SQLAlchemy e o SDK Python do Docker. É necessário ter PostgreSQL e um daemon Docker em execução, com suporte a contêineres Linux. Os caminhos dos templates funcionam em Windows e Linux.
 
 ### Dependências Python
 
@@ -49,12 +49,18 @@ python -m venv .venv
 Ative com `source .venv/Scripts/activate` no Git Bash do Windows ou `source .venv/bin/activate` em Linux. Depois:
 
 ```bash
-python -m pip install fastapi uvicorn sqlalchemy psycopg2-binary docker python-multipart jinja2
+python -m pip install -r requirements.txt
 ```
 
 ### Banco e imagens
 
-Crie um banco PostgreSQL e configure `DATABASE_URL` em `Backend/constants.py` com a conexão do seu ambiente. A inicialização da API cria as tabelas `submissions`, `submissions_result` e `problems` quando elas ainda não existem.
+Crie um banco PostgreSQL e defina a variável de ambiente `DATABASE_URL` com a conexão do seu ambiente. Exemplo em PowerShell:
+
+```powershell
+$env:DATABASE_URL = "postgresql://judge_user:senha@localhost:5432/judge_db"
+```
+
+Em Linux/Git Bash, use `export DATABASE_URL="postgresql://judge_user:senha@localhost:5432/judge_db"`. Sem essa variável, a API utiliza o endereço de desenvolvimento definido em `Backend/constants.py`. A inicialização cria as tabelas `submissions`, `submissions_result` e `problems` quando elas ainda não existem.
 
 Construa as imagens a partir da raiz:
 
@@ -63,7 +69,7 @@ docker build -t judge/c:latest Images/c
 docker build -t judge/cpp:latest Images/cpp
 ```
 
-O ambiente de execução utiliza GCC/G++, `sh`, `timeout` e `/usr/bin/time`. Configure essas ferramentas nas imagens Linux utilizadas pelo executor.
+As imagens incluem GCC/G++, `sh`, `timeout` e `/usr/bin/time`. Reconstrua ambas após atualizar os Dockerfiles.
 
 ### Iniciar a API
 
@@ -72,7 +78,7 @@ cd Backend
 python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Abra [a interface local](http://127.0.0.1:8000/) ou [a documentação da API](http://127.0.0.1:8000/docs). O JavaScript da interface também aponta para `127.0.0.1:8000`.
+Abra [a interface local](http://127.0.0.1:8000/) ou [a documentação da API](http://127.0.0.1:8000/docs). A interface envia requisições para o mesmo endereço e porta usados para abrir a página.
 
 ## Rotas
 
@@ -81,9 +87,23 @@ Abra [a interface local](http://127.0.0.1:8000/) ou [a documentação da API](ht
 | `POST /submit` | Recebe JSON com `code`, `input` e `lang`, que deve ser `C` ou `C++` |
 | `GET /submissions` | Exibe o histórico de submissões |
 | `GET /submission/{id}` | Exibe uma submissão e seus arquivos |
+| `POST /problem/new` | Cadastra enunciado, descrições de entrada/saída, tempo e ZIP dos casos de teste |
 
 A resposta de execução contém `output`, `errout`, `flag` e `time`. O campo `flag` indica que o fluxo classificou um erro, enquanto `errout` contém sua descrição.
 
+O formulário de cadastro está em `/problem/new/`. O ZIP deve conter pares `1.in`/`1.out`, `2.in`/`2.out`, etc., sem lacunas, pastas ou arquivos duplicados. São aceitos até 2000 arquivos e 50 MiB descompactados. Os casos ficam em `Problems/<id>/`; os campos `title`, `etext`, `time` (ms), `input` e `output` são enviados junto com o arquivo `file`. O cadastro retorna o ID salvo. O executor `/submit` continua executando o código com a entrada fornecida; a comparação automática com esses casos ainda não está implementada.
+
 ## Configuração dos contêineres
 
-Cada submissão utiliza um contêiner com rede desativada, memória de 256 MB, limite de 50 processos e quota de CPU equivalente a metade de um núcleo. O comando de execução define um limite de dez segundos para o programa.
+Cada submissão utiliza um contêiner sem privilégios de root, com rede desativada, sistema de arquivos somente de leitura, `/tmp` de 64 MiB, memória de 256 MB, limite de 50 processos e quota de CPU equivalente a metade de um núcleo. A compilação tem limite de 30 segundos e o programa, de dez segundos, com encerramento forçado após mais um segundo caso ignore o sinal de término. A saída é limitada a 1 MiB; o tempo é coletado separadamente das mensagens de erro do programa.
+
+## Testes
+
+Na raiz do repositório:
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
+```
+
+Os testes da API usam Docker simulado e SQLite temporário para verificar persistência, classificações de erro, limpeza, páginas e validação dos ZIPs, sem precisar dos serviços externos. Para executar também os testes com as imagens Docker construídas, defina `JUDGE_DOCKER_TESTS=1` (`$env:JUDGE_DOCKER_TESTS = "1"` em PowerShell ou `export JUDGE_DOCKER_TESTS=1` em Linux/Git Bash) e repita o comando. Eles verificam C/C++, erro de compilação, erro de execução, limite de tempo e saída ilimitada.

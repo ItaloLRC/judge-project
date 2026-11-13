@@ -1,188 +1,168 @@
+from contextlib import asynccontextmanager
+import logging
+import os
+import re
+import shutil
+import zipfile
+import zlib
+
+import docker
 from fastapi import FastAPI, Request, UploadFile, File, HTTPException, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-import zipfile
-import os
-import docker
+
 import filesystem
 import container
 import models
 import constants
 import crud
 
-app = FastAPI()
+logger = logging.getLogger(__name__)
+client = None
 
-client = docker.from_env()
-models.create_table()
+
+@asynccontextmanager
+async def lifespan(app):
+    global client
+    client = docker.from_env()
+    try:
+        models.create_table()
+        yield
+    finally:
+        client.close()
+
+
+app = FastAPI(lifespan=lifespan)
+
 
 @app.post("/submit")
-async def Submit(InCurrentCode: models.InCodeAreaText):
-
+def Submit(InCurrentCode: models.InCodeAreaText):
     OutCurrentCode = models.OutCodeAreaText()
 
-    tmpDirObject = filesystem.create_dir() # Crio o objeto do diretório temporário
+    with filesystem.create_dir() as tmpdir:
+        filepath = filesystem.create_filepath(tmpdir, constants.langPath[InCurrentCode.lang])
+        inputpath = filesystem.create_filepath(tmpdir, "input.txt")
+        filesystem.write_file(filepath, InCurrentCode.code)
+        filesystem.write_file(inputpath, InCurrentCode.input)
+        currentID = crud.insert_submission_register(InCurrentCode.lang)
 
-    filepath = filesystem.create_filepath(tmpDirObject.name, "newfile.c") # Crio o caminho do arquivo que posteriormente será escrito
-    inputpath = filesystem.create_filepath(tmpDirObject.name, "input.txt") # Crio o caminho do arquivo de input
+        instancia = None
+        scode = -1
+        try:
+            instancia = container.container_run(client, InCurrentCode.lang, filepath, inputpath)
+            scode, _ = instancia.exec_run(constants.CompileCMD[InCurrentCode.lang])
+            if scode != 0:
+                OutCurrentCode.flag = True
+                OutCurrentCode.errout = "Compilation Error"
+            else:
+                scode, (stdout, elapsed) = instancia.exec_run(constants.RunCMD, demux=True)
+                OutCurrentCode.output = (stdout or b"").decode("utf-8", errors="replace")
+                elapsed = (elapsed or b"").decode("utf-8", errors="replace").strip()
+                if re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", elapsed):
+                    OutCurrentCode.time = elapsed
 
-    filesystem.write_file(filepath, InCurrentCode.code) # Escrevo o código enviado no arquivo criado
-    filesystem.write_file(inputpath, InCurrentCode.input) # Escrevo o input no arquivo .txt criado
-
-    currentID =  crud.insert_submission_register(InCurrentCode.lang) # Insere no banco de dados os metadados da submissão
-
-    #Criação do arquivos persistentes para o banco de dados e controle de dados
-    #Código fonte e o output e o input (talvez)
-
-    #Container
-    instancia = container.container_run(client, InCurrentCode.lang, filepath, inputpath) # Inicio o container com os dados necessários
-    scode = 0 # Status code
-
-    try:
-
-        compilacao = instancia.exec_run(constants.CompileCMD[InCurrentCode.lang]) #Compilo o código enviado
-
-        if compilacao[0] != 0:
+                # SIGKILL também pode indicar falta de memória; só é timeout após o limite.
+                timed_out = scode == 124 or (scode == 137 and bool(OutCurrentCode.time) and float(OutCurrentCode.time) >= 10)
+                if timed_out:
+                    OutCurrentCode.flag = True
+                    OutCurrentCode.errout = "Time Limit Exceeded"
+                elif scode != 0:
+                    OutCurrentCode.flag = True
+                    OutCurrentCode.errout = "Runtime Error"
+        except docker.errors.DockerException:
+            logger.exception("Falha no executor da submissão %s", currentID)
+            scode = -1
             OutCurrentCode.flag = True
-            OutCurrentCode.errout = "Compilation Error"
-            return OutCurrentCode
+            OutCurrentCode.errout = "Executor indisponível"
+        finally:
+            if instancia is not None:
+                try:
+                    instancia.remove(force=True)
+                except docker.errors.DockerException:
+                    logger.exception("Falha ao remover o contêiner da submissão %s", currentID)
 
-        exec = instancia.exec_run(constants.RunCMD, demux=True) #Executo o código que fora compilado
-
-        scode = exec[0] # Guardo o exitcode
-        stdout, stderr = exec[1] # Guardo a saída padrão e de erro
-
-        if scode in (124, 143):
-            OutCurrentCode.flag = True
-            OutCurrentCode.errout = "Time Limit Exceeded"
-        elif scode != 0:
-            OutCurrentCode.flag = True
-            OutCurrentCode.errout = "Runtime Error"
-        else:
-            OutCurrentCode.output = stdout.decode("utf-8") if stdout else ""
-
-        OutCurrentCode.time = stderr.decode("utf-8").strip() # Parse na string de erro (nesse caso, seria o tempo de execução)
-
-    except Exception as e:
-        instancia.kill()
-        OutCurrentCode.flag = True;
-        OutCurrentCode.errout = "Erro"
-    finally:
-        instancia.stop()
-        instancia.remove() #Por fim a instância é removida, afinal marcamos "remove=false"(padrão), e "detach=true"
+        subpath = os.path.join(constants.submissionDir, str(currentID))
+        os.makedirs(subpath, exist_ok=True)
+        filesystem.write_file(os.path.join(subpath, "cf.txt"), InCurrentCode.code)
+        filesystem.write_file(os.path.join(subpath, "out.txt"), OutCurrentCode.output)
+        filesystem.write_file(os.path.join(subpath, "in.txt"), InCurrentCode.input)
         crud.insert_result_register(currentID, OutCurrentCode.time, OutCurrentCode.flag, scode, OutCurrentCode.errout)
 
-
-        #Crio os arquivos persistentes da submissão atual
-        #Consiste em código fonte, output e input
-        subpath = os.path.join(constants.submissionDir, str(currentID))
-        os.makedirs(subpath)
-        filesystem.write_file(os.path.join(subpath, "cf.txt"), InCurrentCode.code) # Salvo o código fonte
-        filesystem.write_file(os.path.join(subpath, "out.txt"), OutCurrentCode.output) # Salvo o output
-        filesystem.write_file(os.path.join(subpath, "in.txt"), InCurrentCode.input) # Salvo o input
-
-    filesystem.delete_dir(tmpDirObject) # O diretório temporário é excluido
-
-    #Retorna o objeto de OutCodeAreaText
-
+    if OutCurrentCode.errout == "Executor indisponível":
+        raise HTTPException(status_code=503, detail=OutCurrentCode.errout)
     return OutCurrentCode
 
+
 @app.get("/submissions")
-async def Submissions(request: Request):
-
-    submissions = crud.get_submissions()
-    print(submissions)
-
+def Submissions(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="submissions.html",
-        context={"submissions": submissions}
+        context={"submissions": crud.get_submissions()}
     )
 
-def parse_name(filename: str):
-    file_id = 0
 
-    for c in filename:
-        if c == '.': break 
+def validate_testcases(archive):
+    files = archive.infolist()
+    if not files or len(files) > 2000 or sum(f.file_size for f in files) > 50 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="ZIP vazio ou acima do limite de 2000 arquivos e 50 MiB descompactados.")
 
-        if c > '9' or c < '0':
-            file_id = 0
-            break
+    infiles, outfiles = set(), set()
+    for entry in files:
+        match = re.fullmatch(r"([1-9][0-9]*)\.(in|out)", entry.filename)
+        if match is None or entry.flag_bits & 1:
+            raise HTTPException(status_code=400, detail="O ZIP deve conter apenas pares 1.in/1.out, 2.in/2.out, etc., sem pastas ou senha.")
+        number, extension = match.groups()
+        target = infiles if extension == "in" else outfiles
+        if number in target:
+            raise HTTPException(status_code=400, detail="O ZIP contém casos de teste duplicados.")
+        target.add(number)
 
-        file_id *= 10
-        file_id += int(c)
-
-
-    return file_id ## concatena todas as letras
+    expected = {str(i) for i in range(1, len(infiles) + 1)}
+    if infiles != outfiles or infiles != expected:
+        raise HTTPException(status_code=400, detail="Os casos devem formar pares .in/.out numerados de 1 até N, sem lacunas.")
 
 
 @app.post("/problem/new")
-async def ProblemSubmissions(file: UploadFile = File(...), etext: str = Form(...), time : int = Form(...), title : str = Form(...)):
+def ProblemSubmissions(
+    file: UploadFile = File(...), etext: str = Form(...),
+    time: int = Form(..., gt=0), title: str = Form(...),
+    input: str = Form(...), output: str = Form(...)
+):
+    if not all(value.strip() for value in (title, etext, input, output)):
+        raise HTTPException(status_code=422, detail="Preencha todos os campos do problema.")
 
-    flag = False
-    print(title)
-    outfiles = set()
-    infiles = set()
-    verify_set = set()
+    os.makedirs(constants.problemsDir, exist_ok=True)
+    with filesystem.create_dir() as tmpdir:
+        try:
+            with zipfile.ZipFile(file.file, "r") as archive:
+                validate_testcases(archive)
+                for entry in archive.infolist():
+                    with archive.open(entry) as source, open(os.path.join(tmpdir, entry.filename), "wb") as target:
+                        # Os nomes e o tamanho descompactado já foram validados.
+                        shutil.copyfileobj(source, target)
+        except (zipfile.BadZipFile, zlib.error, RuntimeError, NotImplementedError, EOFError) as exc:
+            raise HTTPException(status_code=400, detail="Arquivo ZIP inválido ou não suportado.") from exc
+        finally:
+            file.file.close()
 
-    #endswith('.in')
+        current_id = crud.insert_problem_register(time, title, etext, input, output)
+        shutil.copytree(tmpdir, os.path.join(constants.problemsDir, str(current_id)))
 
-    with zipfile.ZipFile(file.file, "r") as current_zip_file:
-
-        current_zip_file_namelist = current_zip_file.namelist()
-        k = len(current_zip_file_namelist)
-        for i in range(1, int(k/2)+1): verify_set.add(int(i))
-
-        for filename in current_zip_file_namelist:
-
-            parsed_name = parse_name(filename)
-            if parsed_name == 0:
-                flag = True
-                break
-            if filename.endswith('.in'):
-                if (parsed_name in infiles):
-                    flag = True
-                    break
-                infiles.add(parsed_name)
-
-            elif filename.endswith('.out'):
-                if (parsed_name in outfiles):
-                    flag = True
-                    break
-                outfiles.add(parsed_name)
-
-            else:
-                flag = True
-                break
-        
-        if infiles != outfiles: flag = True
-        if infiles != verify_set: flag = True
-
-    current_id = int()
-
-    os.path.join(constants.problemsDir, str(current_id))
-
-    print(infiles)
-    print(outfiles)
-    print(verify_set)
-    print(flag)
-
-
-
-    return {'message': "Ok"}
+    return {"message": "Ok", "id": current_id}
 
 
 @app.get("/submission/{id}")
-async def current_submission(id: int, request: Request):
-    
-    submission = dict(crud.get_submission_by_id(id))
-
-    strid = str(id)
-
-    submission["code"] = filesystem.read_file(os.path.join(constants.submissionDir, strid, "cf.txt"))
-    submission["output"] = filesystem.read_file(os.path.join(constants.submissionDir, strid, "out.txt"))
-    submission["input"] = filesystem.read_file(os.path.join(constants.submissionDir, strid, "in.txt"))
-
-    print(submission)
+def current_submission(id: int, request: Request):
+    record = crud.get_submission_by_id(id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Submissão não encontrada.")
+    submission = dict(record)
+    try:
+        for field, filename in (("code", "cf.txt"), ("output", "out.txt"), ("input", "in.txt")):
+            submission[field] = filesystem.read_file(os.path.join(constants.submissionDir, str(id), filename))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Arquivos da submissão não encontrados.") from exc
 
     return templates.TemplateResponse(
         request=request,
@@ -191,6 +171,5 @@ async def current_submission(id: int, request: Request):
     )
 
 
-
-templates = Jinja2Templates(directory=os.path.join(constants.BASE, "..\\Frontend\\Templates"))
-app.mount("/", StaticFiles(directory=os.path.join(constants.BASE, "../Frontend"), html=True), name="static")#
+templates = Jinja2Templates(directory=os.path.join(constants.BASE, "..", "Frontend", "Templates"))
+app.mount("/", StaticFiles(directory=os.path.join(constants.BASE, "..", "Frontend"), html=True), name="static")

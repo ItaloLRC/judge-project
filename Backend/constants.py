@@ -1,8 +1,8 @@
 import os
 
 CompileCMD = {
-    "C++":["sh", "-c", "g++ /codigo/newfile.cpp -o /tmp/newfile"],
-    "C":["sh", "-c", "gcc /codigo/newfile.c -o /tmp/newfile"]
+    "C++":["timeout", "-k", "1s", "30s", "g++", "/codigo/newfile.cpp", "-o", "/tmp/newfile"],
+    "C":["timeout", "-k", "1s", "30s", "gcc", "/codigo/newfile.c", "-o", "/tmp/newfile"]
 }
 
 ContainerVolume = {
@@ -20,9 +20,15 @@ langPath = {
     "C":"cf.c"
 }
 
-RunCMD = "sh -c 'timeout 10 /usr/bin/time -f \"%e\" /tmp/newfile < /codigo/input.txt'"
+RunCMD = [
+    "sh", "-c",
+    "/usr/bin/time -q -f '%e' timeout -k 1s 10s sh -c "
+    "'ulimit -f 1024; exec /tmp/newfile < /codigo/input.txt "
+    "> /tmp/judge-stdout 2> /tmp/judge-stderr'; "
+    "status=$?; timeout -k 1s 2s head -c 1048576 /tmp/judge-stdout 2>/dev/null; exit \"$status\""
+]
 
-DATABASE_URL = "postgresql://judge_user:senha@localhost:5432/judge_db"
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://judge_user:senha@localhost:5432/judge_db")
 
 BASE = os.path.dirname(__file__) # Pega o endereço do arquivo atual
 

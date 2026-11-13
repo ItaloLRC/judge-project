@@ -19,18 +19,12 @@ def create_filepath(tmpdir: str, filename: str):
     return filepath # Retorno o caminho criado
 
 def read_file(filepath: str):
-    aux = str
-    with open(filepath, "r+") as f:
-        aux = f.read()
-        f.seek(0)
-
-    return aux
+    with open(filepath, "r", encoding="utf-8") as f:
+        return f.read()
 
 
 def write_file(filepath: str, data: str):
 
-    with open(filepath, "w+") as f: # Abro o arquivo em modo escrita
+    with open(filepath, "w", encoding="utf-8", newline="") as f: # Abro o arquivo em modo escrita
 
         f.write(data) # Escrevo os dados
-        f.seek(0)
-    

@@ -1,6 +1,6 @@
 "use strict";
 
-const API = "http://127.0.0.1:8000"
+const API = ""
 
 function OnButtonClick(){
 
@@ -17,6 +17,9 @@ function OnButtonClick(){
             headers: { "Content-Type": "application/json"},
             body: JSON.stringify({input: inputText, code: text, lang: textLanguage})
         }).then(function(ans){
+            if (!ans.ok) {
+                throw new Error("Falha na submissão");
+            }
             return ans.json();
         }).then(function(data){
             console.log(data);

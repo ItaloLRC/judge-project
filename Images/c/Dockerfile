@@ -1,5 +1,5 @@
 FROM alpine:3.19
 
-RUN apk add --no-cache gcc musl-dev
+RUN apk add --no-cache gcc musl-dev coreutils time
 
 WORKDIR /JudgeProject

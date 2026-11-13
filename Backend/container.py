@@ -18,7 +18,12 @@ def container_run(client, lang: str, filepath: str, inputpath: str):
         detach=True,
         cpu_period=100000,
         cpu_quota=50000,
-        pids_limit=50
+        pids_limit=50,
+        user="1000:1000",
+        cap_drop=["ALL"],
+        security_opt=["no-new-privileges:true"],
+        read_only=True,
+        tmpfs={"/tmp": "rw,exec,nosuid,size=64m,mode=1777"}
     )
 
     return instancia

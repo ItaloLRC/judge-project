@@ -1,7 +1,9 @@
-from sqlalchemy import create_engine, text
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
 from constants import DATABASE_URL
 
-engine = create_engine(DATABASE_URL)
+url = make_url(DATABASE_URL)
+if url.drivername == "postgresql":
+    url = url.set(drivername="postgresql+psycopg2")
+engine = create_engine(url)
 

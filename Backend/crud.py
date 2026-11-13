@@ -16,8 +16,8 @@ def insert_submission_register(lang: str):
             {"language": lang}
 
         )
+        cid = result.scalar_one()
         conn.commit()
-        cid = result.fetchone().id
 
     return cid
     
@@ -36,25 +36,25 @@ def insert_result_register(sub_id: int, time: str, flag: bool, exit_code: int, e
             {"submission_id": sub_id,  "time": time, "flag": flag, "exit_code": exit_code, "errout": errout}
 
             )
-        cid = result.fetchone().id
+        cid = result.scalar_one()
         conn.commit()
 
     return cid
 
-def insert_problem_register(time: int, title: str, text:str, input:str, output:str):
+def insert_problem_register(time: int, title: str, description: str, input:str, output:str):
     cid: int
 
     with engine.connect() as conn:
         result = conn.execute(text(
             """
             INSERT INTO problems (time, title, textarea, input, output)
-            VALUES(:time, :title, :text, :input, :output)
+            VALUES(:time, :title, :textarea, :input, :output)
             RETURNING id
             """),
-            {"time": time, "title": title, "textarea": text, "input":input, "output":output}
+            {"time": time, "title": title, "textarea": description, "input":input, "output":output}
         )
 
-        cid = result.fetchone().id
+        cid = result.scalar_one()
         conn.commit()
     
     return cid
