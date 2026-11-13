@@ -1,109 +1,111 @@
 # JudgeProject
 
-JudgeProject é um executor de código C e C++ para uma plataforma de programação competitiva. O usuário envia um programa e sua entrada; a API compila o código em um contêiner Docker, executa o binário e devolve a saída ou a classificação do erro.
+English | [Português (Brasil)](README.pt-BR.md)
 
-O projeto estuda o fluxo de uma submissão, desde o formulário no navegador até o registro no banco de dados. A inspiração são plataformas como Beecrowd, Codeforces e DOMjudge.
+JudgeProject is a C and C++ code runner for a competitive programming platform. Users submit a program and its input; the API compiles the code in a Docker container, runs the binary, and returns its output or an error classification.
 
-## O que está implementado
+The project explores the submission workflow, from the browser form to the database record. It draws inspiration from platforms such as Beecrowd, Codeforces, and DOMjudge.
 
-- Envio de código C/C++ e entrada padrão pelo navegador ou por uma API JSON.
-- Compilação com GCC ou G++ e execução em um contêiner por submissão.
-- Retorno de stdout e indicação de erro de compilação, erro de execução ou limite de tempo excedido.
-- Registro de metadados e resultados no PostgreSQL.
-- Histórico de submissões e páginas para consultar código, entrada e saída salvos.
+## Implemented features
 
-## Fluxo de uma submissão
+- Submit C/C++ code and standard input through the browser or a JSON API.
+- Compile with GCC or G++ and run in a separate container for each submission.
+- Return stdout and classify compilation errors, runtime errors, and time limit violations.
+- Store metadata and results in PostgreSQL.
+- Browse submission history and view saved source code, input, and output.
 
-1. O formulário envia `code`, `input` e `lang` para `POST /submit`.
-2. A API grava os arquivos temporários e abre o registro da submissão no banco.
-3. Um contêiner recebe os arquivos por volumes somente de leitura e compila o programa.
-4. O executável lê a entrada fornecida. A API coleta a saída, o código de retorno e a informação de tempo.
-5. O contêiner é removido, o resultado fica no PostgreSQL e os arquivos são preservados em `Submissions/<id>/`.
+## Submission workflow
 
-## Organização
+1. The form sends `code`, `input`, and `lang` to `POST /submit`.
+2. The API writes temporary files and creates a submission record in the database.
+3. A container receives the files through read-only bind mounts and compiles the program.
+4. The executable reads the supplied input. The API collects its output, exit code, and elapsed time.
+5. The container is removed, the result is stored in PostgreSQL, and the files are preserved in `Submissions/<id>/`.
 
-| Caminho | Responsabilidade |
+## Project structure
+
+| Path | Responsibility |
 |---|---|
-| [Backend/main.py](Backend/main.py) | API, páginas de consulta e fluxo das submissões |
-| [Backend/container.py](Backend/container.py) | Criação e configuração dos contêineres |
-| [Backend/constants.py](Backend/constants.py) | Imagens, comandos de compilação, diretórios e conexão com o banco |
-| [Backend/models.py](Backend/models.py) | Modelos de entrada/saída e criação das tabelas |
-| [Backend/crud.py](Backend/crud.py) | Consultas e gravações no PostgreSQL via SQLAlchemy |
-| [Backend/filesystem.py](Backend/filesystem.py) | Leitura, gravação e diretórios temporários |
-| [Frontend/](Frontend/) | Formulários HTML, JavaScript e templates Jinja2 |
-| [Images/](Images/) | Dockerfiles das imagens de C e C++ |
-| [Submissions/](Submissions/) | Código, entrada e saída de submissões registradas |
+| [Backend/main.py](Backend/main.py) | API, submission pages, and submission workflow |
+| [Backend/container.py](Backend/container.py) | Container creation and configuration |
+| [Backend/constants.py](Backend/constants.py) | Images, compilation commands, directories, and database connection |
+| [Backend/models.py](Backend/models.py) | Input/output models and table creation |
+| [Backend/crud.py](Backend/crud.py) | PostgreSQL queries and writes through SQLAlchemy |
+| [Backend/filesystem.py](Backend/filesystem.py) | File operations and temporary directories |
+| [Frontend/](Frontend/) | HTML forms, JavaScript, and Jinja2 templates |
+| [Images/](Images/) | Dockerfiles for the C and C++ images |
+| [Submissions/](Submissions/) | Source code, input, and output from recorded submissions |
 
-## Ambiente de desenvolvimento
+## Development environment
 
-O backend usa Python 3.10+, FastAPI, Uvicorn, SQLAlchemy e o SDK Python do Docker. É necessário ter PostgreSQL e um daemon Docker em execução, com suporte a contêineres Linux. Os caminhos dos templates funcionam em Windows e Linux.
+The backend uses Python 3.10+, FastAPI, Uvicorn, SQLAlchemy, and the Docker SDK for Python. PostgreSQL and a running Docker daemon with Linux container support are required. Template paths work on Windows and Linux.
 
-### Dependências Python
+### Python dependencies
 
-Na raiz do repositório, crie um ambiente virtual:
+Create a virtual environment at the repository root:
 
 ```bash
 python -m venv .venv
 ```
 
-Ative com `source .venv/Scripts/activate` no Git Bash do Windows ou `source .venv/bin/activate` em Linux. Depois:
+Activate it with `source .venv/Scripts/activate` in Git Bash on Windows or `source .venv/bin/activate` on Linux. Then run:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-### Banco e imagens
+### Database and images
 
-Crie um banco PostgreSQL e defina a variável de ambiente `DATABASE_URL` com a conexão do seu ambiente. Exemplo em PowerShell:
+Create a PostgreSQL database and set the `DATABASE_URL` environment variable to your connection string. PowerShell example:
 
 ```powershell
 $env:DATABASE_URL = "postgresql://judge_user:senha@localhost:5432/judge_db"
 ```
 
-Em Linux/Git Bash, use `export DATABASE_URL="postgresql://judge_user:senha@localhost:5432/judge_db"`. Sem essa variável, a API utiliza o endereço de desenvolvimento definido em `Backend/constants.py`. A inicialização cria as tabelas `submissions`, `submissions_result` e `problems` quando elas ainda não existem.
+On Linux/Git Bash, use `export DATABASE_URL="postgresql://judge_user:senha@localhost:5432/judge_db"`. If the variable is unset, the API uses the development URL in `Backend/constants.py`. Startup creates the `submissions`, `submissions_result`, and `problems` tables if they do not exist.
 
-Construa as imagens a partir da raiz:
+Build the images from the repository root:
 
 ```bash
 docker build -t judge/c:latest Images/c
 docker build -t judge/cpp:latest Images/cpp
 ```
 
-As imagens incluem GCC/G++, `sh`, `timeout` e `/usr/bin/time`. Reconstrua ambas após atualizar os Dockerfiles.
+The images include GCC/G++, `sh`, `timeout`, and `/usr/bin/time`. Rebuild both images after updating the Dockerfiles.
 
-### Iniciar a API
+### Start the API
 
 ```bash
 cd Backend
 python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Abra [a interface local](http://127.0.0.1:8000/) ou [a documentação da API](http://127.0.0.1:8000/docs). A interface envia requisições para o mesmo endereço e porta usados para abrir a página.
+Open the [local interface](http://127.0.0.1:8000/) or the [API documentation](http://127.0.0.1:8000/docs). The interface sends requests to the same address and port used to open the page.
 
-## Rotas
+## Routes
 
-| Método e caminho | Uso |
+| Method and path | Purpose |
 |---|---|
-| `POST /submit` | Recebe JSON com `code`, `input` e `lang`, que deve ser `C` ou `C++` |
-| `GET /submissions` | Exibe o histórico de submissões |
-| `GET /submission/{id}` | Exibe uma submissão e seus arquivos |
-| `POST /problem/new` | Cadastra enunciado, descrições de entrada/saída, tempo e ZIP dos casos de teste |
+| `POST /submit` | Accepts JSON with `code`, `input`, and `lang`, which must be `C` or `C++` |
+| `GET /submissions` | Displays submission history |
+| `GET /submission/{id}` | Displays a submission and its files |
+| `POST /problem/new` | Registers a problem statement, input/output descriptions, time limit, and ZIP of test cases |
 
-A resposta de execução contém `output`, `errout`, `flag` e `time`. O campo `flag` indica que o fluxo classificou um erro, enquanto `errout` contém sua descrição.
+Execution responses contain `output`, `errout`, `flag`, and `time`. The `flag` field indicates a classified error; `errout` provides its description.
 
-O formulário de cadastro está em `/problem/new/`. O ZIP deve conter pares `1.in`/`1.out`, `2.in`/`2.out`, etc., sem lacunas, pastas ou arquivos duplicados. São aceitos até 2000 arquivos e 50 MiB descompactados. Os casos ficam em `Problems/<id>/`; os campos `title`, `etext`, `time` (ms), `input` e `output` são enviados junto com o arquivo `file`. O cadastro retorna o ID salvo. O executor `/submit` continua executando o código com a entrada fornecida; a comparação automática com esses casos ainda não está implementada.
+The problem registration form is at `/problem/new/`. The ZIP must contain pairs such as `1.in`/`1.out`, `2.in`/`2.out`, and so on, without gaps, folders, or duplicate files. The limits are 2000 files and 50 MiB uncompressed. Test cases are saved in `Problems/<id>/`; the `title`, `etext`, `time` (ms), `input`, and `output` fields are submitted along with the `file` upload. Registration returns the saved ID. The `/submit` runner still executes code with the supplied input; automatic comparison against these test cases is not implemented yet.
 
-## Configuração dos contêineres
+## Container configuration
 
-Cada submissão utiliza um contêiner sem privilégios de root, com rede desativada, sistema de arquivos somente de leitura, `/tmp` de 64 MiB, memória de 256 MB, limite de 50 processos e quota de CPU equivalente a metade de um núcleo. A compilação tem limite de 30 segundos e o programa, de dez segundos, com encerramento forçado após mais um segundo caso ignore o sinal de término. A saída é limitada a 1 MiB; o tempo é coletado separadamente das mensagens de erro do programa.
+Each submission runs in a container without root privileges, with networking disabled, a read-only filesystem, a 64 MiB `/tmp`, 256 MB of memory, a limit of 50 processes, and a CPU quota equivalent to half a core. Compilation has a 30-second limit and execution has a ten-second limit, followed by forced termination after one additional second if the program ignores the termination signal. Output is limited to 1 MiB; elapsed time is collected separately from the program's error messages.
 
-## Testes
+## Tests
 
-Na raiz do repositório:
+From the repository root:
 
 ```bash
 python -m pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
-Os testes da API usam Docker simulado e SQLite temporário para verificar persistência, classificações de erro, limpeza, páginas e validação dos ZIPs, sem precisar dos serviços externos. Para executar também os testes com as imagens Docker construídas, defina `JUDGE_DOCKER_TESTS=1` (`$env:JUDGE_DOCKER_TESTS = "1"` em PowerShell ou `export JUDGE_DOCKER_TESTS=1` em Linux/Git Bash) e repita o comando. Eles verificam C/C++, erro de compilação, erro de execução, limite de tempo e saída ilimitada.
+API tests use mocked Docker and a temporary SQLite database to check persistence, error classifications, cleanup, pages, and ZIP validation without external services. To also run tests against the built Docker images, set `JUDGE_DOCKER_TESTS=1` (`$env:JUDGE_DOCKER_TESTS = "1"` in PowerShell or `export JUDGE_DOCKER_TESTS=1` on Linux/Git Bash) and repeat the command. These tests cover C/C++, compilation errors, runtime errors, time limits, and unbounded output.
